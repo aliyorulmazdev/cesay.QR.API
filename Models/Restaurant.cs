@@ -13,8 +13,13 @@ namespace cesay.QR.API.Models
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public string ImageUrl { get; set; }
+        public string LogoUrl { get; set; }
+        public string Phone { get; set; }
         public double Rate { get; set; }
+        public string Secret { get; set; }
+        public string Status { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
+        public ICollection<Table>? Tables { get; set; }
     }
 }

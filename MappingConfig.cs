@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using cesay.QR.API.Models;
-using cesay.QR.API.Models.Dto;
+using cesay.QR.API.Models.DTO;
 
 namespace cesay.QR.API
 {

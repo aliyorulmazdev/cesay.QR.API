@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using cesay.QR.API.Models;
-using cesay.QR.API.Models.Dto;
+using cesay.QR.API.Models.DTO;
 using cesay.QR.API.Repository.IRepository;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;

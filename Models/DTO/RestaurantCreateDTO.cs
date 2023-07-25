@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace cesay.QR.API.Models.Dto
+namespace cesay.QR.API.Models.DTO
 {
     public class RestaurantCreateDTO
     {
@@ -15,6 +15,10 @@ namespace cesay.QR.API.Models.Dto
         public double Longitude { get; set; }
         [Required]
         public string ImageUrl { get; set; }
+        [Required]
+        public string LogoUrl { get; set; }
+        [Required]
+        public string Phone { get; set; }
         [Required]
         public double Rate { get; set; }
     }
