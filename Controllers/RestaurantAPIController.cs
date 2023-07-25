@@ -1,4 +1,5 @@
-﻿using cesay.QR.API.Data;
+﻿using AutoMapper;
+using cesay.QR.API.Data;
 using cesay.QR.API.Models;
 using cesay.QR.API.Models.Dto;
 using Microsoft.AspNetCore.Http;
@@ -13,70 +14,60 @@ namespace cesay.QR.API.Controllers
     public class RestaurantAPIController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public RestaurantAPIController(ApplicationDbContext context)
+        private readonly IMapper _mapper;
+
+        public RestaurantAPIController(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public ActionResult<IEnumerable<RestaurantDTO>> GetRestaurants()
+        public async Task<ActionResult<IEnumerable<RestaurantDTO>>> GetRestaurants()
         {
-            return Ok(_context.Restaurants.ToList());
+            IEnumerable<Restaurant> restaurantList = await _context.Restaurants.ToListAsync();
+            return Ok(_mapper.Map<List<RestaurantDTO>>(restaurantList));
         }
 
         [HttpGet("{id:int}", Name = "GetRestaurant")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult<RestaurantDTO> GetRestaurant(int id)
+        public async Task<ActionResult<RestaurantDTO>> GetRestaurant(int id)
         {
             if ( id == 0)
             {
                 return BadRequest();
             }
-            var restaurant = _context.Restaurants.FirstOrDefault(x => x.Id == id);
+            var restaurant = await _context.Restaurants.FirstOrDefaultAsync(x => x.Id == id);
             if (restaurant == null )
             {
                 return NotFound();
             }            
-            return Ok(restaurant);
+            return Ok(_mapper.Map<RestaurantDTO>(restaurant));
         }
 
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<RestaurantDTO> CreateRestaurant([FromBody]RestaurantDTO restaurant)
+        public async Task<ActionResult<RestaurantDTO>> CreateRestaurant([FromBody]RestaurantCreateDTO createDTO)
         {
-            if (_context.Restaurants.FirstOrDefault(x=> x.Name.ToLower()==restaurant.Name.ToLower())!= null)
+            if (await _context.Restaurants.FirstOrDefaultAsync(x=> x.Name.ToLower()==createDTO.Name.ToLower())!= null)
             {
                 ModelState.AddModelError("CustomError", "Restaurant already exist!");
                 return BadRequest(ModelState);
             }
 
-            if (restaurant == null)
+            if (createDTO == null)
             {
                 return StatusCode(StatusCodes.Status400BadRequest);
             }
 
-            if (restaurant.Id > 0 )
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError);
-            }
-            Restaurant resto = new Restaurant()
-            {
-                Name = restaurant.Name,
-                Description = restaurant.Description,
-                Id = restaurant.Id,
-                ImageUrl = restaurant.ImageUrl,
-                Latitude = restaurant.Latitude,
-                Longitude = restaurant.Longitude,
-                CreatedDate = DateTime.UtcNow,
-                UpdatedDate = DateTime.UtcNow
-            };
-            _context.Restaurants.Add(resto);
-            _context.SaveChanges();
+            Restaurant restaurant = _mapper.Map<Restaurant>(createDTO);
+            await _context.Restaurants.AddAsync(restaurant);
+            await _context.SaveChangesAsync();
             return CreatedAtRoute("GetRestaurant", new {id = restaurant.Id }, restaurant);
         }
 
@@ -84,19 +75,19 @@ namespace cesay.QR.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult DeleteRestaurant(int id)
+        public async Task<IActionResult> DeleteRestaurant(int id)
         {
             if (id == 0)
             {
                 return BadRequest();
             }
-            var restaurant = _context.Restaurants.FirstOrDefault(x => x.Id == id);
+            var restaurant = await _context.Restaurants.FirstOrDefaultAsync(x => x.Id == id);
             if (restaurant == null)
             {
                 return NotFound();
             }
             _context.Restaurants.Remove(restaurant);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return NoContent();
 
         }
@@ -105,26 +96,17 @@ namespace cesay.QR.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult UpdateRestaurant(int id, [FromBody] RestaurantDTO restaurantDTO)
+        public async Task<IActionResult> UpdateRestaurant(int id, [FromBody] RestaurantUpdateDTO restaurantDTO)
         {
-            if (id == 0)
+            if (restaurantDTO == null || id != restaurantDTO.Id)
             {
                 return BadRequest();
             }
-            var restaurant = _context.Restaurants.FirstOrDefault(x => x.Id == id);
-            if (restaurant == null)
-            {
-                return NotFound();
-            }
-            restaurant.Name = restaurantDTO.Name;
-            restaurant.Description = restaurantDTO.Description;
-            restaurant.Longitude = restaurantDTO.Longitude;
-            restaurant.Latitude = restaurantDTO.Latitude;
-            restaurant.Rate = restaurantDTO.Rate;
-            restaurant.ImageUrl = restaurantDTO.ImageUrl;
-            restaurant.UpdatedDate = DateTime.UtcNow;
+
+
+            Restaurant restaurant = _mapper.Map<Restaurant>(restaurantDTO);
             _context.Restaurants.Update(restaurant);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return NoContent();
 
         }
@@ -133,45 +115,26 @@ namespace cesay.QR.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult UpdatePartialRestaurant(int id, JsonPatchDocument<RestaurantDTO> patchDTO)
+        public async Task<IActionResult> UpdatePartialRestaurant(int id, JsonPatchDocument<RestaurantUpdateDTO> patchDTO)
         {
             if (patchDTO == null || id == 0)
             {
                 return BadRequest();
             }
-            var restaurant = _context.Restaurants.AsNoTracking().FirstOrDefault(x => x.Id ==id);
+            var restaurant = await _context.Restaurants.AsNoTracking().FirstOrDefaultAsync(x => x.Id ==id);
 
-            RestaurantDTO restoDTO = new RestaurantDTO()
-            {
-                Id = restaurant.Id,
-                Name = restaurant.Name,
-                Description = restaurant.Description,
-                Longitude = restaurant.Longitude,
-                Latitude = restaurant.Latitude,
-                ImageUrl = restaurant.ImageUrl,
-                Rate = restaurant.Rate,
-            };
+            RestaurantUpdateDTO restaurantDTO = _mapper.Map<RestaurantUpdateDTO>(restaurant);
+
             if (restaurant == null)
             {
                 return NotFound();
             }
 
-            patchDTO.ApplyTo(restoDTO, ModelState);
-            Restaurant resto = new Restaurant()
-            {
-                Id = restoDTO.Id,
-                Name = restoDTO.Name,
-                Description = restoDTO.Description,
-                Longitude = restoDTO.Longitude,
-                Latitude = restoDTO.Latitude,
-                ImageUrl = restoDTO.ImageUrl,
-                Rate = restoDTO.Rate,
-                CreatedDate = restaurant.CreatedDate,
-                UpdatedDate = DateTime.UtcNow,
-            };
+            patchDTO.ApplyTo(restaurantDTO, ModelState);
+            Restaurant model = _mapper.Map<Restaurant>(restaurantDTO);
 
-            _context.Restaurants.Update(resto);
-            _context.SaveChanges();
+            _context.Restaurants.Update(model);
+            await _context.SaveChangesAsync();
 
             if (!ModelState.IsValid)
             {
