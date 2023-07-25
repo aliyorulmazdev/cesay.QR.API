@@ -1,11 +1,10 @@
 ﻿using AutoMapper;
-using cesay.QR.API.Data;
 using cesay.QR.API.Models;
 using cesay.QR.API.Models.Dto;
-using Microsoft.AspNetCore.Http;
+using cesay.QR.API.Repository.IRepository;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Net;
 
 namespace cesay.QR.API.Controllers
 {
@@ -13,102 +12,172 @@ namespace cesay.QR.API.Controllers
     [ApiController]
     public class RestaurantAPIController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        protected APIResponse _response;
+        private readonly IRestaurantRepository _repository;
         private readonly IMapper _mapper;
 
-        public RestaurantAPIController(ApplicationDbContext context, IMapper mapper)
+        public RestaurantAPIController(IRestaurantRepository repository, IMapper mapper)
         {
-            _context = context;
+            _repository = repository;
             _mapper = mapper;
+            this._response = new();
         }
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<RestaurantDTO>>> GetRestaurants()
+        public async Task<ActionResult<APIResponse>> GetRestaurants()
         {
-            IEnumerable<Restaurant> restaurantList = await _context.Restaurants.ToListAsync();
-            return Ok(_mapper.Map<List<RestaurantDTO>>(restaurantList));
+            try
+            {
+                IEnumerable<Restaurant> restaurantList = await _repository.GetAllAsync();
+                _response.Result = _mapper.Map<List<RestaurantDTO>>(restaurantList);
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages
+                    = new List<string>() { ex.ToString() };
+            }
+            return _response;
         }
 
         [HttpGet("{id:int}", Name = "GetRestaurant")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<RestaurantDTO>> GetRestaurant(int id)
+        public async Task<ActionResult<APIResponse>> GetRestaurant(int id)
         {
-            if ( id == 0)
+            try
             {
-                return BadRequest();
+                if (id == 0)
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+                var restaurant = await _repository.GetAsync(x => x.Id == id);
+                if (restaurant == null)
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode=HttpStatusCode.NotFound;
+                    return NotFound(_response);
+                }
+
+                _response.Result = _mapper.Map<RestaurantDTO>(restaurant);
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
             }
-            var restaurant = await _context.Restaurants.FirstOrDefaultAsync(x => x.Id == id);
-            if (restaurant == null )
+            catch (Exception ex)
             {
-                return NotFound();
-            }            
-            return Ok(_mapper.Map<RestaurantDTO>(restaurant));
+                _response.IsSuccess = false;
+                _response.ErrorMessages
+                    = new List<string>() { ex.ToString() };
+            }
+            return _response;
         }
 
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<RestaurantDTO>> CreateRestaurant([FromBody]RestaurantCreateDTO createDTO)
+        public async Task<ActionResult<APIResponse>> CreateRestaurant([FromBody] RestaurantCreateDTO createDTO)
         {
-            if (await _context.Restaurants.FirstOrDefaultAsync(x=> x.Name.ToLower()==createDTO.Name.ToLower())!= null)
+            try
             {
-                ModelState.AddModelError("CustomError", "Restaurant already exist!");
-                return BadRequest(ModelState);
-            }
+                if (await _repository.GetAsync(x => x.Name.ToLower()==createDTO.Name.ToLower())!= null)
+                {
+                    ModelState.AddModelError("CustomError", "Restaurant already exist!");
+                    return BadRequest(ModelState);
+                }
 
-            if (createDTO == null)
+                if (createDTO == null)
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+
+                Restaurant restaurant = _mapper.Map<Restaurant>(createDTO);
+                await _repository.CreateAsync(restaurant);
+
+                _response.Result = _mapper.Map<RestaurantDTO>(restaurant);
+                _response.StatusCode = HttpStatusCode.Created;
+                return CreatedAtRoute("GetRestaurant", new { id = restaurant.Id }, _response);
+            }
+            catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status400BadRequest);
+                _response.IsSuccess = false;
+                _response.ErrorMessages
+                    = new List<string>() { ex.ToString() };
             }
-
-            Restaurant restaurant = _mapper.Map<Restaurant>(createDTO);
-            await _context.Restaurants.AddAsync(restaurant);
-            await _context.SaveChangesAsync();
-            return CreatedAtRoute("GetRestaurant", new {id = restaurant.Id }, restaurant);
+            return _response;
         }
 
         [HttpDelete("{id:int}", Name = "DeleteRestaurant")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteRestaurant(int id)
+        public async Task<ActionResult<APIResponse>> DeleteRestaurant(int id)
         {
-            if (id == 0)
+            try
             {
-                return BadRequest();
+                if (id == 0)
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+                var restaurant = await _repository.GetAsync(x => x.Id == id);
+                if (restaurant == null)
+                {
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.IsSuccess = false;
+                    return NotFound(_response);
+                }
+                await _repository.RemoveAsync(restaurant);
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+                return Ok(_response);
             }
-            var restaurant = await _context.Restaurants.FirstOrDefaultAsync(x => x.Id == id);
-            if (restaurant == null)
+            catch (Exception ex)
             {
-                return NotFound();
+                _response.IsSuccess = false;
+                _response.ErrorMessages
+                    = new List<string>() { ex.ToString() };
             }
-            _context.Restaurants.Remove(restaurant);
-            await _context.SaveChangesAsync();
-            return NoContent();
-
+            return _response;
         }
 
         [HttpPut("{id:int}", Name = "UpdateRestaurant")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateRestaurant(int id, [FromBody] RestaurantUpdateDTO restaurantDTO)
+        public async Task<ActionResult<APIResponse>> UpdateRestaurant(int id, [FromBody] RestaurantUpdateDTO restaurantDTO)
         {
-            if (restaurantDTO == null || id != restaurantDTO.Id)
+            try
             {
-                return BadRequest();
+                if (restaurantDTO == null || id != restaurantDTO.Id)
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+
+                Restaurant restaurant = _mapper.Map<Restaurant>(restaurantDTO);
+                await _repository.UpdateAsync(restaurant);
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+                return Ok(_response);
             }
-
-
-            Restaurant restaurant = _mapper.Map<Restaurant>(restaurantDTO);
-            _context.Restaurants.Update(restaurant);
-            await _context.SaveChangesAsync();
-            return NoContent();
-
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages
+                    = new List<string>() { ex.ToString() };
+            }
+            return _response;
         }
 
         [HttpPatch("{id:int}", Name = "UpdatePartialRestaurant")]
@@ -119,22 +188,25 @@ namespace cesay.QR.API.Controllers
         {
             if (patchDTO == null || id == 0)
             {
-                return BadRequest();
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                return BadRequest(_response);
             }
-            var restaurant = await _context.Restaurants.AsNoTracking().FirstOrDefaultAsync(x => x.Id ==id);
+            var restaurant = await _repository.GetAsync(x => x.Id ==id, tracked: false);
 
             RestaurantUpdateDTO restaurantDTO = _mapper.Map<RestaurantUpdateDTO>(restaurant);
 
             if (restaurant == null)
             {
-                return NotFound();
+                _response.StatusCode = HttpStatusCode.NotFound;
+                _response.IsSuccess = false;
+                return NotFound(_response);
             }
 
             patchDTO.ApplyTo(restaurantDTO, ModelState);
             Restaurant model = _mapper.Map<Restaurant>(restaurantDTO);
 
-            _context.Restaurants.Update(model);
-            await _context.SaveChangesAsync();
+            await _repository.UpdateAsync(model);
 
             if (!ModelState.IsValid)
             {
@@ -142,7 +214,6 @@ namespace cesay.QR.API.Controllers
             }
 
             return NoContent();
-
         }
     }
 }

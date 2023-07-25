@@ -1,5 +1,7 @@
 using cesay.QR.API;
 using cesay.QR.API.Data;
+using cesay.QR.API.Repository;
+using cesay.QR.API.Repository.IRepository;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(option => {
     option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSQLConnection"));
 });
+builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddAutoMapper(typeof(MappingConfig));
 builder.Services.AddControllers(options =>
 {
