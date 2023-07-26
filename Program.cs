@@ -10,7 +10,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(option => {
     option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSQLConnection"));
 });
+
 builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
+builder.Services.AddScoped<IBarRepository, BarRepository>(); // Add BarRepository interface
+builder.Services.AddScoped<IKitchenRepository, KitchenRepository>(); // Add KitchenRepository interface
+builder.Services.AddScoped<IOrderRepository, OrderRepository>(); // Add OrderRepository interface
+builder.Services.AddScoped<IProductRepository, ProductRepository>(); // Add ProductRepository interface
+builder.Services.AddScoped<IProductMaterialRepository, ProductMaterialRepository>(); // Add ProductMaterialRepository interface
+builder.Services.AddScoped<IProductVariantRepository, ProductVariantRepository>(); // Add ProductVariantRepository interface
+builder.Services.AddScoped<IRecipeRepository, RecipeRepository>(); // Add RecipeRepository interface
+builder.Services.AddScoped<ITableRepository, TableRepository>(); // Add TableRepository interface
+
 builder.Services.AddAutoMapper(typeof(MappingConfig));
 builder.Services.AddControllers(options =>
 {
