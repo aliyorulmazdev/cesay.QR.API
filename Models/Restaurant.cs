@@ -21,5 +21,7 @@ namespace cesay.QR.API.Models
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
         public ICollection<Table>? Tables { get; set; }
+        public Kitchen? Kitchen { get; set; }
+        public Bar? Bar { get; set; }
     }
 }

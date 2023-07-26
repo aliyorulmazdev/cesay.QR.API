@@ -11,46 +11,44 @@ namespace cesay.QR.API.Data
         }
 
         public DbSet<Restaurant> Restaurants { get; set; }
+        public DbSet<Bar> Bars { get; set; }
+        public DbSet<Kitchen> Kitchens { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<ProductMaterial> ProductMaterials { get; set; }
+        public DbSet<ProductVariant> ProductVariants { get; set; }
+        public DbSet<Recipe> Recipes { get; set; }
+        public DbSet<Table> Tables { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Restaurant>().HasData(
-            new Restaurant()
-            {
-                Id=1,
-                Name="Munq",
-                Description="Şehrimizin en seçkin lezzet duraklarından biridir. Misafirlerine eşsiz bir yemek deneyimi sunan bu restoran, zengin menüsü ve şık atmosferiyle dikkat çekmektedir. İster iş toplantılarına ister özel kutlamalara uygun olan mekânımızda, lezzetli yemeklerle unutulmaz anlar yaşayabilirsiniz.",
-                Rate=4.4,
-                Latitude=38.3819347,
-                Longitude=27.1122805,
-                ImageUrl="https://www.happygroup.com.tr/uploads/source/2022/06/happy-01.jpg",
-                CreatedDate= DateTime.UtcNow,
-                UpdatedDate= DateTime.UtcNow,
-            },
-            new Restaurant()
-            {
-                Id=2,
-                Name="Last Point",
-                Description="Yemekseverlerin uğrak noktası haline gelen bir mekândır. Eşsiz lezzetler sunan bu restoran, sıcak ve samimi atmosferiyle de kendinizi evinizde hissetmenizi sağlar. En sevdiğiniz yemekleri tatmak ve yeni tatlar keşfetmek için Restoran 2'yi tercih edebilirsiniz.",
-                Rate=4.5,
-                Latitude=38.3819347,
-                Longitude=27.1122805,
-                ImageUrl="https://www.happygroup.com.tr/uploads/source/2022/06/happy-01.jpg",
-                CreatedDate= DateTime.UtcNow,
-                UpdatedDate= DateTime.UtcNow,
-            },
-            new Restaurant()
-            {
-                Id=3,
-                Name="Kahve Diyarı",
-                Description="Eşsiz manzarası ve lezzetli yemekleriyle göz dolduran bir mekândır. Şehrin kalbinde bulunan bu restoran, ferah ve modern tasarımıyla dikkat çeker. Yüksek tavanları, geniş pencereleri ve rahat oturma alanlarıyla misafirlerine rahat ve huzurlu bir ortam sunar.",
-                Rate=4.6,
-                Latitude=38.3819347,
-                Longitude=27.1122805,
-                ImageUrl="https://www.happygroup.com.tr/uploads/source/2022/06/happy-01.jpg",
-                CreatedDate= DateTime.UtcNow,
-                UpdatedDate= DateTime.UtcNow,
-            });
+            // Configure the relationship between Recipes and Restaurants
+            modelBuilder.Entity<Recipe>()
+                .HasOne(r => r.Restaurant)
+                .WithMany()
+                .HasForeignKey(r => r.RestaurantId)
+                .OnDelete(DeleteBehavior.Restrict); // Set to restrict cascade delete
+
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Restaurant)
+                .WithMany()
+                .HasForeignKey(o => o.RestaurantId)
+                .OnDelete(DeleteBehavior.Restrict); // Set to restrict cascade delete
+
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Table)
+                .WithMany()
+                .HasForeignKey(o => o.TableId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ProductMaterial>()
+                .HasOne(pm => pm.Restaurant)
+                .WithMany()
+                .HasForeignKey(pm => pm.RestaurantId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // Add other configurations as needed...
+
+            base.OnModelCreating(modelBuilder);
         }
     }
 }
